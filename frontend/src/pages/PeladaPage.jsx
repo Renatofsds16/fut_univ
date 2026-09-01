@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import Parse from '../services/parseConfig';
 import { fetchPeladaAtiva, fetchJogadoresConfirmados, criarPelada, solicitarPix, verificarStatusPix } from '../services/api';
 
 import { CardPelada } from '../components/CardPelada';
@@ -16,9 +18,11 @@ export function PeladaPage() {
   const [local, setLocal] = useState('Campo Universitário');
   const [criando, setCriando] = useState(false);
 
-  const [nomeJogador, setNomeJogador] = useState('');
   const [gerandoPix, setGerandoPix] = useState(false);
   const [dadosPix, setDadosPix] = useState(null);
+
+  const navigate = useNavigate();
+  const usuarioAtual = Parse.User.current();
 
   async function carregarDados(silencioso = false) {
     try {
@@ -29,6 +33,15 @@ export function PeladaPage() {
       if (pelada) {
         const lista = await fetchJogadoresConfirmados(pelada);
         setJogadoresConfirmados(lista);
+
+        const usuarioJaConfirmou = lista.some(conf => {
+          const jogador = conf.get('jogador');
+          return jogador && jogador.id === usuarioAtual?.id;
+        });
+
+        if (usuarioJaConfirmou) {
+          navigate('/confirmado', { replace: true });
+        }
       }
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -48,9 +61,7 @@ export function PeladaPage() {
           const res = await verificarStatusPix(dadosPix.txid);
           if (res.pago) {
             alert('🎉 Pagamento confirmado com sucesso!');
-            setDadosPix(null);
-            setNomeJogador('');
-            await carregarDados(true);
+            navigate('/confirmado');
             return;
           }
         } catch (e) {
@@ -64,7 +75,12 @@ export function PeladaPage() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [dadosPix, peladaAtiva]);
+  }, [dadosPix, peladaAtiva, navigate]);
+
+  async function handleLogout() {
+    await Parse.User.logOut();
+    navigate('/');
+  }
 
   async function handleCriarPelada(e) {
     e.preventDefault();
@@ -84,7 +100,11 @@ export function PeladaPage() {
 
   async function handleGerarPix(e) {
     e.preventDefault();
-    if (!nomeJogador) return alert('Por favor, informe seu nome!');
+    const nomeJogador = usuarioAtual?.get('username');
+
+    if (!nomeJogador) {
+      return alert('Usuário não autenticado.');
+    }
 
     setGerandoPix(true);
     try {
@@ -111,14 +131,22 @@ export function PeladaPage() {
 
   return (
     <div style={{ textAlign: 'center', fontFamily: 'sans-serif', padding: '0 20px', maxWidth: '600px', margin: '40px auto' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <span>Usuário: <strong>{usuarioAtual?.get('username')}</strong></span>
+        <button
+          onClick={handleLogout}
+          style={{ backgroundColor: '#d32f2f', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}
+        >
+          Sair
+        </button>
+      </div>
+
       <h1>⚽ Pelada Universitária</h1>
 
       {peladaAtiva ? (
         <>
           <CardPelada peladaAtiva={peladaAtiva} />
           <AreaPix
-            nomeJogador={nomeJogador}
-            setNomeJogador={setNomeJogador}
             gerandoPix={gerandoPix}
             dadosPix={dadosPix}
             setDadosPix={setDadosPix}

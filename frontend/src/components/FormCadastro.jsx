@@ -2,36 +2,54 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import Parse from '../services/parseConfig';
 
-export function FormLogin() {
+export function FormCadastro() {
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [entrando, setEntrando] = useState(false);
+  const [cadastrando, setCadastrando] = useState(false);
   const navigate = useNavigate();
 
-  async function handleLogin(e) {
+  async function handleCadastro(e) {
     e.preventDefault();
-    setEntrando(true);
+    setCadastrando(true);
 
     try {
-      await Parse.User.logIn(username, senha);
+      const user = new Parse.User();
+      user.set('username', username);
+      user.set('email', email);
+      user.set('password', senha);
+
+      await user.signUp();
+      alert('Cadastro realizado com sucesso!');
       navigate('/pelada');
     } catch (error) {
-      alert('Falha ao realizar login: ' + (error.message || 'Verifique suas credenciais.'));
+      alert('Erro ao cadastrar: ' + (error.message || 'Tente novamente.'));
     } finally {
-      setEntrando(false);
+      setCadastrando(false);
     }
   }
 
   return (
     <div style={{ maxWidth: '350px', margin: '80px auto', padding: '20px', border: '1px solid #ccc', borderRadius: '8px', textAlign: 'center' }}>
-      <h2>🔑 Login na Pelada</h2>
-      <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
+      <h2>📝 Cadastro na Pelada</h2>
+      <form onSubmit={handleCadastro} style={{ display: 'flex', flexDirection: 'column', gap: '12px', textAlign: 'left' }}>
         <div>
-          <label><strong>Usuário / E-mail:</strong></label>
+          <label><strong>Nome de Usuário:</strong></label>
           <input
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box' }}
+            required
+          />
+        </div>
+
+        <div>
+          <label><strong>E-mail:</strong></label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
             style={{ width: '100%', padding: '8px', marginTop: '4px', boxSizing: 'border-box' }}
             required
           />
@@ -50,15 +68,15 @@ export function FormLogin() {
 
         <button
           type="submit"
-          disabled={entrando}
+          disabled={cadastrando}
           style={{ backgroundColor: '#2e7d32', color: 'white', padding: '10px', border: 'none', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', marginTop: '10px' }}
         >
-          {entrando ? 'Entrando...' : 'Entrar'}
+          {cadastrando ? 'Cadastrando...' : 'Cadastrar'}
         </button>
       </form>
 
       <p style={{ marginTop: '15px', fontSize: '0.9em' }}>
-        Não tem uma conta? <Link to="/cadastro">Cadastre-se</Link>
+        Já tem uma conta? <Link to="/">Faça Login</Link>
       </p>
     </div>
   );
