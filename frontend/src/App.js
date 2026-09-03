@@ -4,14 +4,20 @@ import { FormLogin } from './components/FormLogin';
 import { FormCadastro } from './components/FormCadastro';
 import { PeladaPage } from './pages/PeladaPage';
 import { ConfirmadoPage } from './pages/ConfirmadoPage';
+import { AdminPeladaPage } from './pages/AdminPeladaPage';
 import { PrivateRoute } from './components/PrivateRoute';
 
 function App() {
   return (
     <Routes>
+      {/* Rotas Públicas */}
       <Route path="/" element={<FormLogin />} />
       <Route path="/cadastro" element={<FormCadastro />} />
 
+      {/* Rota /confirmado liberada de checagem do PrivateRoute */}
+      <Route path="/confirmado" element={<ConfirmadoPage />} />
+
+      {/* Rotas Protegidas (Singular e Plural mapeadas) */}
       <Route
         path="/pelada"
         element={
@@ -20,12 +26,20 @@ function App() {
           </PrivateRoute>
         }
       />
-
       <Route
-        path="/confirmado"
+        path="/peladas"
         element={
           <PrivateRoute>
-            <ConfirmadoPage />
+            <PeladaPage />
+          </PrivateRoute>
+        }
+      />
+
+      <Route
+        path="/admin"
+        element={
+          <PrivateRoute>
+            <AdminPeladaPage />
           </PrivateRoute>
         }
       />
