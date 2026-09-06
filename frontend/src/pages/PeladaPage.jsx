@@ -6,7 +6,8 @@ import {
   verificarUsuarioConfirmado, 
   solicitarPix, 
   verificarStatusPix, 
-  salvarConfirmacao 
+  salvarConfirmacao,
+  criarPelada
 } from '../services/api';
 
 export function PeladaPage() {
@@ -19,7 +20,6 @@ export function PeladaPage() {
   const [copiado, setCopiado] = useState(false);
   const [mensagemErro, setMensagemErro] = useState('');
 
-  // Estados para Modal/Formulário de Criar Pelada
   const [exibirFormCriar, setExibirFormCriar] = useState(false);
   const [novoLocal, setNovoLocal] = useState('');
   const [novaDataHora, setNovaDataHora] = useState('');
@@ -28,7 +28,6 @@ export function PeladaPage() {
 
   const navigate = useNavigate();
 
-  // Função para garantir usuário no Parse
   async function garantirUsuarioAtivo() {
     let currentUser = Parse.User.current();
     if (!currentUser) {
@@ -41,33 +40,32 @@ export function PeladaPage() {
     return currentUser;
   }
 
-  // Função centralizada para salvar confirmação e redirecionar direto
   const concluirEIrParaConfirmado = useCallback(async (pelada) => {
     try {
       setProcessandoPix(true);
       await garantirUsuarioAtivo();
       
-      // Salva no Parse
-      await salvarConfirmacao(pelada);
-      
-      // Salva no LocalStorage do navegador para garantia
+      // Chamada ajustada enviando os identificadores necessários para o Cloud Code
+      await salvarConfirmacao({
+        peladaId: pelada.id,
+        txid: dadosPix?.txid || dadosPix?.id
+      });
+
       localStorage.setItem(`pelada_confirmada_${pelada.id}`, 'true');
     } catch (error) {
-      console.error("Erro ao concluir confirmação no Parse:", error);
+      console.error("Erro ao concluir confirmação via Cloud Code:", error);
       localStorage.setItem(`pelada_confirmada_${pelada.id}`, 'true');
     } finally {
       setProcessandoPix(false);
-      // Navega imediatamente para /confirmado
       navigate('/confirmado', { state: { peladaId: pelada.id }, replace: true });
     }
-  }, [navigate]);
+  }, [navigate, dadosPix]);
 
-  // Carrega a lista de peladas apenas
   async function carregarPeladas() {
     try {
       setCarregando(true);
       const peladas = await fetchPeladas();
-      setListaPeladas(peladas);
+      setListaPeladas(peladas || []);
     } catch (error) {
       console.error('Erro ao carregar lista de peladas:', error);
       setMensagemErro('Não foi possível carregar as peladas disponíveis.');
@@ -76,32 +74,27 @@ export function PeladaPage() {
     }
   }
 
-  // 1. Carrega lista de peladas apenas uma vez na montagem
   useEffect(() => {
     carregarPeladas();
   }, []);
 
-  // 2. Polling automático: verifica o pagamento PIX a cada 3 segundos
   useEffect(() => {
     let intervalId;
-    const idPagamento = dadosPix?.id || dadosPix?.payment_id || dadosPix?.txid;
+    const idPagamento = dadosPix?.txid || dadosPix?.id || dadosPix?.payment_id;
 
     if (idPagamento && peladaSelecionada) {
-      console.log('🔄 Monitorando pagamento ID:', idPagamento);
-
       intervalId = setInterval(async () => {
         try {
-          const statusRes = await verificarStatusPix(idPagamento);
-          console.log('🔎 Status PIX:', statusRes);
+          const statusRes = await verificarStatusPix({
+            txid: idPagamento,
+            peladaId: peladaSelecionada.id
+          });
 
           const pago = 
             statusRes?.pago === true || 
-            statusRes?.status === 'approved' || 
-            statusRes?.status === 'PAGO' ||
-            statusRes?.detail?.status === 'approved';
+            statusRes?.status === 'approved';
 
           if (pago) {
-            console.log('✅ Pagamento Aprovado!');
             clearInterval(intervalId);
             await concluirEIrParaConfirmado(peladaSelecionada);
           }
@@ -116,7 +109,7 @@ export function PeladaPage() {
     };
   }, [dadosPix, peladaSelecionada, concluirEIrParaConfirmado]);
 
-  // Handler para criar nova pelada
+  // Handler corrigido: chama a Cloud Function do Back4App para criação
   async function handleCriarPeladaSubmit(e) {
     e.preventDefault();
     if (!novoLocal || !novaDataHora || !novoValor) {
@@ -128,14 +121,12 @@ export function PeladaPage() {
       setSalvandoNovaPelada(true);
       await garantirUsuarioAtivo();
 
-      const Pelada = Parse.Object.extend("Pelada");
-      const novaPelada = new Pelada();
-
-      novaPelada.set("local", novoLocal);
-      novaPelada.set("dataHora", new Date(novaDataHora));
-      novaPelada.set("valor", Number(novoValor));
-
-      await novaPelada.save();
+      // Envia requisição para a Cloud Function 'criarPelada' no Back4App
+      await criarPelada({
+        local: novoLocal,
+        dataHora: novaDataHora,
+        valor: Number(novoValor)
+      });
       
       setNovoLocal('');
       setNovaDataHora('');
@@ -144,21 +135,20 @@ export function PeladaPage() {
 
       await carregarPeladas();
     } catch (error) {
-      console.error("Erro ao salvar nova pelada:", error);
-      alert("Falha ao salvar pelada: " + error.message);
+      console.error("Erro ao criar pelada no backend:", error);
+      alert("Falha ao criar pelada: " + (error.message || "Erro interno no servidor"));
     } finally {
       setSalvandoNovaPelada(false);
     }
   }
 
-  // Ao clicar em uma pelada, verifica se ela já foi confirmada
   async function handleSelecionarPelada(pelada) {
     try {
       setCarregando(true);
       await garantirUsuarioAtivo();
 
       const jaConfirmadoLocal = localStorage.getItem(`pelada_confirmada_${pelada.id}`);
-      const jaConfirmadoParse = await verificarUsuarioConfirmado(pelada);
+      const jaConfirmadoParse = await verificarUsuarioConfirmado({ peladaId: pelada.id });
 
       if (jaConfirmadoLocal || jaConfirmadoParse) {
         navigate('/confirmado', { state: { peladaId: pelada.id }, replace: true });
@@ -187,10 +177,15 @@ export function PeladaPage() {
         ? (usuarioAtual.get('username') || usuarioAtual.get('email') || 'Atleta') 
         : 'Atleta';
 
+      const valorPelada = typeof peladaSelecionada.get === 'function' 
+        ? peladaSelecionada.get('valor') 
+        : peladaSelecionada.valor;
+
       const respostaPix = await solicitarPix({
         peladaId: peladaSelecionada.id,
-        valor: peladaSelecionada.get('valor') || 0,
-        nomeJogador: nomeUsuario
+        valor: valorPelada || 0,
+        nomeJogador: nomeUsuario,
+        jogadorId: usuarioAtual?.id
       });
 
       setDadosPix(respostaPix);
@@ -203,32 +198,26 @@ export function PeladaPage() {
   }
 
   function handleCopiarPix() {
-    if (dadosPix?.pix_copia_cola) {
-      navigator.clipboard.writeText(dadosPix.pix_copia_cola);
+    const code = dadosPix?.pixCopiaECola || dadosPix?.pix_copia_cola || dadosPix?.qr_code;
+    if (code) {
+      navigator.clipboard.writeText(code);
       setCopiado(true);
       setTimeout(() => setCopiado(false), 3000);
     }
   }
 
-  async function handleForcarConfirmacao() {
-    if (peladaSelecionada) {
-      await concluirEIrParaConfirmado(peladaSelecionada);
-    }
-  }
-
   if (carregando && !salvandoNovaPelada) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff', fontFamily: 'sans-serif' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#0f172a', color: '#fff' }}>
         <h2>⏳ Carregando peladas...</h2>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif', padding: '20px' }}>
+    <div style={{ minHeight: '100vh', backgroundColor: '#0f172a', color: '#f8fafc', padding: '20px', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
       <div style={{ maxWidth: '600px', margin: '0 auto' }}>
         
-        {/* Cabeçalho */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
           <div>
             <h1 style={{ color: '#38bdf8', margin: 0, fontSize: '1.8em' }}>⚽ Peladas Disponíveis</h1>
@@ -237,87 +226,28 @@ export function PeladaPage() {
           
           <button
             onClick={() => setExibirFormCriar(!exibirFormCriar)}
-            style={{
-              backgroundColor: exibirFormCriar ? '#ef4444' : '#16a34a',
-              color: '#fff',
-              border: 'none',
-              padding: '10px 14px',
-              borderRadius: '8px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              fontSize: '0.9em'
-            }}
+            style={{ backgroundColor: exibirFormCriar ? '#ef4444' : '#16a34a', color: '#fff', border: 'none', padding: '10px 14px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}
           >
             {exibirFormCriar ? '✖ Cancelar' : '➕ Criar Pelada'}
           </button>
         </div>
 
-        {/* Formulário de Criar Pelada */}
         {exibirFormCriar && (
-          <form 
-            onSubmit={handleCriarPeladaSubmit} 
-            style={{ 
-              backgroundColor: '#1e293b', 
-              padding: '20px', 
-              borderRadius: '12px', 
-              border: '1px solid #38bdf8', 
-              marginBottom: '24px',
-              display: 'grid',
-              gap: '12px'
-            }}
-          >
+          <form onSubmit={handleCriarPeladaSubmit} style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #38bdf8', marginBottom: '24px', display: 'grid', gap: '12px' }}>
             <h3 style={{ margin: 0, color: '#38bdf8' }}>➕ Cadastrar Nova Pelada</h3>
-            
             <div>
               <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8em', marginBottom: '4px' }}>LOCAL</label>
-              <input
-                type="text"
-                placeholder="Ex: Arena Gol de Placa"
-                value={novoLocal}
-                onChange={(e) => setNovoLocal(e.target.value)}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }}
-              />
+              <input type="text" placeholder="Ex: Arena Gol de Placa" value={novoLocal} onChange={(e) => setNovoLocal(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
-
             <div>
-              <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8em', marginBottom: '4px' }}>DATA E HORÁRIO</label>
-              <input
-                type="datetime-local"
-                value={novaDataHora}
-                onChange={(e) => setNovaDataHora(e.target.value)}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }}
-              />
+              <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8em', marginBottom: '4px' }}>DATA E HORÁARIO</label>
+              <input type="datetime-local" value={novaDataHora} onChange={(e) => setNovaDataHora(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
-
             <div>
               <label style={{ display: 'block', color: '#94a3b8', fontSize: '0.8em', marginBottom: '4px' }}>VALOR (R$)</label>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="25.00"
-                value={novoValor}
-                onChange={(e) => setNovoValor(e.target.value)}
-                required
-                style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }}
-              />
+              <input type="number" step="0.01" placeholder="25.00" value={novoValor} onChange={(e) => setNovoValor(e.target.value)} required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #334155', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} />
             </div>
-
-            <button
-              type="submit"
-              disabled={salvandoNovaPelada}
-              style={{
-                backgroundColor: '#38bdf8',
-                color: '#0f172a',
-                border: 'none',
-                padding: '12px',
-                borderRadius: '6px',
-                fontWeight: 'bold',
-                cursor: salvandoNovaPelada ? 'not-allowed' : 'pointer',
-                marginTop: '8px'
-              }}
-            >
+            <button type="submit" disabled={salvandoNovaPelada} style={{ backgroundColor: '#38bdf8', color: '#0f172a', border: 'none', padding: '12px', borderRadius: '6px', fontWeight: 'bold', cursor: salvandoNovaPelada ? 'not-allowed' : 'pointer' }}>
               {salvandoNovaPelada ? 'Salvando...' : 'Salvar e Publicar Pelada'}
             </button>
           </form>
@@ -331,107 +261,34 @@ export function PeladaPage() {
 
         {peladaSelecionada ? (
           <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', border: '2px solid #38bdf8', marginBottom: '24px' }}>
-            <button 
-              onClick={() => { setPeladaSelecionada(null); setDadosPix(null); }}
-              style={{ backgroundColor: 'transparent', color: '#94a3b8', border: 'none', cursor: 'pointer', marginBottom: '12px' }}
-            >
+            <button onClick={() => { setPeladaSelecionada(null); setDadosPix(null); }} style={{ backgroundColor: 'transparent', color: '#94a3b8', border: 'none', cursor: 'pointer', marginBottom: '12px' }}>
               ⬅️ Voltar para a lista
             </button>
 
             <h2 style={{ color: '#38bdf8', marginTop: 0 }}>
-              {peladaSelecionada.get('local') || peladaSelecionada.get('nome') || 'Pelada'}
+              {typeof peladaSelecionada.get === 'function' ? peladaSelecionada.get('local') : peladaSelecionada.local}
             </h2>
 
-            <div style={{ textAlign: 'left', marginBottom: '24px', display: 'grid', gap: '12px' }}>
-              <div>
-                <span style={{ color: '#94a3b8', fontSize: '0.8em', fontWeight: 'bold' }}>📅 DATA E HORÁRIO</span>
-                <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '1.1em' }}>
-                  {peladaSelecionada.get('dataHora')
-                    ? new Date(peladaSelecionada.get('dataHora')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                    : (peladaSelecionada.get('data') || 'A definir')}
-                </p>
-              </div>
-              <div>
-                <span style={{ color: '#94a3b8', fontSize: '0.8em', fontWeight: 'bold' }}>💰 VALOR</span>
-                <p style={{ margin: '4px 0 0 0', fontWeight: 'bold', fontSize: '1.3em', color: '#4ade80' }}>
-                  R$ {Number(peladaSelecionada.get('valor') || 0).toFixed(2)}
-                </p>
-              </div>
-            </div>
-
             {!dadosPix ? (
-              <button
-                onClick={handleGerarPix}
-                disabled={processandoPix}
-                style={{
-                  width: '100%',
-                  backgroundColor: '#16a34a',
-                  color: '#fff',
-                  border: 'none',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  fontWeight: 'bold',
-                  fontSize: '1.1em',
-                  cursor: processandoPix ? 'not-allowed' : 'pointer',
-                  opacity: processandoPix ? 0.7 : 1
-                }}
-              >
+              <button onClick={handleGerarPix} disabled={processandoPix} style={{ width: '100%', backgroundColor: '#16a34a', color: '#fff', border: 'none', padding: '16px', borderRadius: '12px', fontWeight: 'bold', cursor: processandoPix ? 'not-allowed' : 'pointer' }}>
                 {processandoPix ? '🔄 Gerando QR Code PIX...' : '📲 Gerar QR Code PIX'}
               </button>
             ) : (
               <div style={{ textAlign: 'center', marginTop: '16px' }}>
                 <h3 style={{ color: '#f8fafc', margin: '0 0 12px 0' }}>Escaneie o QR Code para pagar:</h3>
-
-                {(dadosPix.qrcode_url || dadosPix.qr_code_base64) && (
+                {(dadosPix.qrCodeBase64 || dadosPix.qrcode_url || dadosPix.qr_code_base64) && (
                   <div style={{ backgroundColor: '#fff', padding: '12px', borderRadius: '12px', display: 'inline-block', margin: '8px 0' }}>
                     <img
-                      src={
-                        (dadosPix.qrcode_url || dadosPix.qr_code_base64).startsWith('data:') 
-                          ? (dadosPix.qrcode_url || dadosPix.qr_code_base64) 
-                          : `data:image/png;base64,${dadosPix.qrcode_url || dadosPix.qr_code_base64}`
-                      }
+                      src={dadosPix.qrCodeBase64 || dadosPix.qrcode_url || dadosPix.qr_code_base64}
                       alt="QR Code PIX"
                       style={{ width: '200px', height: '200px', borderRadius: '8px' }}
                     />
                   </div>
                 )}
-
-                <p style={{ color: '#94a3b8', fontSize: '0.9em', marginTop: '12px' }}>Ou utilize o código Copia e Cola:</p>
-
-                <button
-                  onClick={handleCopiarPix}
-                  style={{
-                    width: '100%',
-                    backgroundColor: 'transparent',
-                    color: '#38bdf8',
-                    border: '1px solid #38bdf8',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    marginTop: '8px'
-                  }}
-                >
+                <button onClick={handleCopiarPix} style={{ width: '100%', backgroundColor: 'transparent', color: '#38bdf8', border: '1px solid #38bdf8', padding: '12px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', marginTop: '8px' }}>
                   {copiado ? '✅ Código Copiado!' : '📋 Copiar Código PIX'}
                 </button>
-
-                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#4ade80' }}>
-                  <span style={{ fontSize: '1.2em' }}>🔄</span>
-                  <span style={{ fontSize: '0.9em', fontWeight: 'bold' }}>Aguardando confirmação automática...</span>
-                </div>
-
-                <button
-                  onClick={handleForcarConfirmacao}
-                  style={{
-                    marginTop: '16px',
-                    backgroundColor: 'transparent',
-                    color: '#38bdf8',
-                    border: 'none',
-                    fontSize: '0.85em',
-                    textDecoration: 'underline',
-                    cursor: 'pointer'
-                  }}
-                >
+                <button onClick={() => concluirEIrParaConfirmado(peladaSelecionada)} style={{ marginTop: '16px', backgroundColor: 'transparent', color: '#38bdf8', border: 'none', fontSize: '0.85em', textDecoration: 'underline', cursor: 'pointer' }}>
                   Já fiz o PIX? Clique aqui para confirmar a vaga.
                 </button>
               </div>
@@ -440,54 +297,23 @@ export function PeladaPage() {
         ) : (
           <div style={{ display: 'grid', gap: '16px' }}>
             {listaPeladas.length > 0 ? (
-              listaPeladas.map((pelada) => (
-                <div 
-                  key={pelada.id} 
-                  style={{ 
-                    backgroundColor: '#1e293b', 
-                    padding: '20px', 
-                    borderRadius: '12px', 
-                    border: '1px solid #334155',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <div>
-                    <h3 style={{ margin: '0 0 8px 0', color: '#f8fafc' }}>
-                      {pelada.get('local') || pelada.get('nome') || 'Pelada'}
-                    </h3>
-                    <p style={{ margin: '0 0 4px 0', color: '#94a3b8', fontSize: '0.9em' }}>
-                      📅 {pelada.get('dataHora')
-                        ? new Date(pelada.get('dataHora')).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })
-                        : (pelada.get('data') || 'Data a definir')}
-                    </p>
-                    <p style={{ margin: 0, color: '#4ade80', fontWeight: 'bold' }}>
-                      R$ {Number(pelada.get('valor') || 0).toFixed(2)}
-                    </p>
+              listaPeladas.map((pelada) => {
+                const local = typeof pelada.get === 'function' ? pelada.get('local') : pelada.local;
+                const valor = typeof pelada.get === 'function' ? pelada.get('valor') : pelada.valor;
+                return (
+                  <div key={pelada.id} style={{ backgroundColor: '#1e293b', padding: '20px', borderRadius: '12px', border: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <h3 style={{ margin: '0 0 8px 0', color: '#f8fafc' }}>{local || 'Pelada'}</h3>
+                      <p style={{ margin: 0, color: '#4ade80', fontWeight: 'bold' }}>R$ {Number(valor || 0).toFixed(2)}</p>
+                    </div>
+                    <button onClick={() => handleSelecionarPelada(pelada)} style={{ backgroundColor: '#2563eb', color: '#fff', border: 'none', padding: '10px 16px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer' }}>
+                      Confirmar Vaga
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => handleSelecionarPelada(pelada)}
-                    style={{
-                      backgroundColor: '#2563eb',
-                      color: '#fff',
-                      border: 'none',
-                      padding: '10px 16px',
-                      borderRadius: '8px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    Confirmar Vaga
-                  </button>
-                </div>
-              ))
+                );
+              })
             ) : (
-              <div style={{ backgroundColor: '#1e293b', padding: '24px', borderRadius: '16px', textAlign: 'center' }}>
-                <p style={{ color: '#94a3b8', margin: 0 }}>Nenhuma pelada cadastrada ainda.</p>
-                <p style={{ color: '#64748b', fontSize: '0.85em', marginTop: '8px' }}>Clique no botão "➕ Criar Pelada" acima para cadastrar a primeira.</p>
-              </div>
+              <p style={{ color: '#94a3b8', textAlign: 'center' }}>Nenhuma pelada cadastrada ainda.</p>
             )}
           </div>
         )}

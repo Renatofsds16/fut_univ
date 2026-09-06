@@ -10,22 +10,12 @@ import { PrivateRoute } from './components/PrivateRoute';
 function App() {
   return (
     <Routes>
-      {/* Rotas Públicas */}
       <Route path="/" element={<FormLogin />} />
       <Route path="/cadastro" element={<FormCadastro />} />
 
-      {/* Rota /confirmado liberada de checagem do PrivateRoute */}
+
       <Route path="/confirmado" element={<ConfirmadoPage />} />
 
-      {/* Rotas Protegidas (Singular e Plural mapeadas) */}
-      <Route
-        path="/pelada"
-        element={
-          <PrivateRoute>
-            <PeladaPage />
-          </PrivateRoute>
-        }
-      />
       <Route
         path="/peladas"
         element={

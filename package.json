@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "parse": "^8.6.0",
     "react-router-dom": "^7.18.3"
   }
 }
