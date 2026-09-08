@@ -1,15 +1,23 @@
-import React from 'react';
-import { Navigate } from 'react-router-dom';
-import Parse from '../services/parseConfig';
+import React from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 
-export function PrivateRoute({ children }) {
-  const currentUser = Parse.User.current();
+export function PrivateRoute() {
+  const location = useLocation();
 
-  if (!currentUser) {
-    
-    return <Navigate to="/" replace />;
+  const usuarioLogado = !!localStorage.getItem("token");
+  console.log("*************************************************")
+  console.log(usuarioLogado)
+  console.log("*************************************************")
+
+  if (!usuarioLogado) {
+    return (
+      <Navigate
+        to="/"
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
-
-  return children;
+  return <Outlet />;
 }
