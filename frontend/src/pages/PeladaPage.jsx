@@ -1,59 +1,86 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { allPeladas } from "../services/game";
+
+import { useParams, useNavigate } from "react-router-dom";
+
+import { buscarPelada } from "../services/game";
 
 export function PeladaPage() {
-  // Apesar do nome usuarioId, ele representa o ID da pelada
-  const { usuarioId } = useParams();
+  const { peladaId } = useParams();
 
-  const [listaPeladas, setListaPeladas] = useState([]);
+  const navigate = useNavigate();
+
+  const [pelada, setPelada] = useState(null);
+
   const [carregando, setCarregando] = useState(true);
+
   const [mensagemErro, setMensagemErro] = useState("");
 
-  async function carregarPeladas() {
-    try {
-      setCarregando(true);
-      setMensagemErro("");
+  useEffect(() => {
+    async function carregarPelada() {
+      try {
+        setCarregando(true);
 
-      let resposta;
+        setMensagemErro("");
 
-      // ==========================================
-      // TEM ID NA URL
-      // /peladas/akfdçafk
-      // ==========================================
-      if (usuarioId) {
-        resposta = await allPeladas(usuarioId);
+        console.log("ID da pelada:", peladaId);
+
+        if (!peladaId) {
+          setMensagemErro("ID da pelada não informado.");
+          return;
+        }
+
+        const resposta = await buscarPelada(peladaId);
+
+        console.log("Resposta da pelada:", resposta);
+
+        if (resposta?.success && resposta?.pelada) {
+          setPelada(resposta.pelada);
+        } else {
+          setMensagemErro("Pelada não encontrada.");
+          setPelada(null);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar pelada:", error);
+
+        setMensagemErro(
+          error?.message ||
+            "Não foi possível carregar a pelada."
+        );
+
+        setPelada(null);
+      } finally {
+        setCarregando(false);
       }
-
-      // ==========================================
-      // NÃO TEM ID NA URL
-      // /peladas
-      // ==========================================
-      else {
-        resposta = await allPeladas();
-      }
-
-      setListaPeladas(resposta?.peladas || []);
-    } catch (error) {
-      console.error("Erro ao carregar peladas:", error);
-
-      setMensagemErro(
-        error?.message || "Não foi possível carregar as peladas."
-      );
-
-      setListaPeladas([]);
-    } finally {
-      setCarregando(false);
     }
+
+    carregarPelada();
+  }, [peladaId]);
+
+  function formatarData(dataHora) {
+    if (!dataHora) {
+      return "Data não informada";
+    }
+
+    return new Date(dataHora).toLocaleDateString("pt-BR");
   }
 
-  useEffect(() => {
-    carregarPeladas();
-  }, [usuarioId]);
+  function formatarHora(dataHora) {
+    if (!dataHora) {
+      return "Horário não informado";
+    }
 
-  // ==========================================
-  // CARREGANDO
-  // ==========================================
+    return new Date(dataHora).toLocaleTimeString("pt-BR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function formatarValor(valor) {
+    return Number(valor || 0).toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  }
 
   if (carregando) {
     return (
@@ -65,17 +92,12 @@ export function PeladaPage() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          fontFamily: "system-ui, -apple-system, sans-serif",
         }}
       >
-        <h2>⏳ Carregando peladas...</h2>
+        <h2>⏳ Carregando pelada...</h2>
       </div>
     );
   }
-
-  // ==========================================
-  // TELA
-  // ==========================================
 
   return (
     <div
@@ -93,38 +115,33 @@ export function PeladaPage() {
           margin: "0 auto",
         }}
       >
-        {/* CABEÇALHO */}
-
-        <div
+        {/* BOTÃO VOLTAR */}
+        <button
+          onClick={() => navigate("/peladas")}
           style={{
+            marginBottom: "20px",
+            padding: "10px 15px",
+            border: "1px solid #334155",
+            borderRadius: "8px",
+            backgroundColor: "#1e293b",
+            color: "#f8fafc",
+            cursor: "pointer",
+          }}
+        >
+          ← Voltar
+        </button>
+
+        <h1
+          style={{
+            color: "#38bdf8",
             textAlign: "center",
             marginBottom: "30px",
           }}
         >
-          <h1
-            style={{
-              color: "#38bdf8",
-              margin: 0,
-              fontSize: "1.8em",
-            }}
-          >
-            ⚽ {usuarioId ? "Pelada" : "Peladas"}
-          </h1>
+          ⚽ Detalhes da pelada
+        </h1>
 
-          <p
-            style={{
-              color: "#94a3b8",
-              marginTop: "8px",
-            }}
-          >
-            {usuarioId
-              ? "Detalhes da pelada"
-              : "Todas as peladas disponíveis"}
-          </p>
-        </div>
-
-        {/* ERRO */}
-
+        {/* MENSAGEM DE ERRO */}
         {mensagemErro && (
           <div
             style={{
@@ -134,115 +151,134 @@ export function PeladaPage() {
               padding: "15px",
               borderRadius: "10px",
               textAlign: "center",
-              marginBottom: "20px",
             }}
           >
             {mensagemErro}
           </div>
         )}
 
-        {/* PELADAS */}
-
-        {listaPeladas.length > 0 ? (
-          <div
-            style={{
-              display: "grid",
-              gap: "16px",
-            }}
-          >
-            {listaPeladas.map((pelada) => {
-              const local = pelada.local;
-              const valor = pelada.valor;
-              const dataHora = pelada.dataHora;
-
-              return (
-                <div
-                  key={pelada.objectId || pelada.id}
-                  style={{
-                    backgroundColor: "#1e293b",
-                    padding: "20px",
-                    borderRadius: "14px",
-                    border: "1px solid #334155",
-                  }}
-                >
-                  <h2
-                    style={{
-                      margin: "0 0 12px",
-                      color: "#f8fafc",
-                      fontSize: "1.2rem",
-                    }}
-                  >
-                    ⚽ {local || "Pelada"}
-                  </h2>
-
-                  <p
-                    style={{
-                      margin: "8px 0",
-                      color: "#cbd5e1",
-                    }}
-                  >
-                    📅{" "}
-                    {dataHora
-                      ? new Date(dataHora).toLocaleString("pt-BR")
-                      : "Data não informada"}
-                  </p>
-
-                  <p
-                    style={{
-                      margin: "8px 0 0",
-                      color: "#4ade80",
-                      fontWeight: "bold",
-                      fontSize: "1.1rem",
-                    }}
-                  >
-                    💰 R$ {Number(valor || 0).toFixed(2)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* NENHUMA PELADA */
-
+        {/* DADOS DA PELADA */}
+        {pelada && (
           <div
             style={{
               backgroundColor: "#1e293b",
-              padding: "45px 20px",
+              padding: "25px",
               borderRadius: "16px",
               border: "1px solid #334155",
-              textAlign: "center",
-              margin: "40px auto",
-              maxWidth: "450px",
             }}
           >
-            <div
-              style={{
-                fontSize: "3rem",
-                marginBottom: "15px",
-              }}
-            >
-              ⚽
-            </div>
-
             <h2
               style={{
-                color: "#f8fafc",
-                margin: "0 0 10px",
+                margin: "0 0 25px",
+                fontSize: "1.5rem",
               }}
             >
-              Nenhuma pelada encontrada
+              📍 {pelada.local || "Local não informado"}
             </h2>
 
-            <p
+            <div
               style={{
-                color: "#94a3b8",
-                margin: 0,
+                display: "grid",
+                gap: "18px",
               }}
             >
-              {usuarioId
-                ? "A pelada informada não foi encontrada."
-                : "Ainda não existem peladas cadastradas."}
-            </p>
+              {/* DATA */}
+              <div>
+                <strong>📅 Data</strong>
+
+                <p style={{ color: "#cbd5e1" }}>
+                  {formatarData(pelada.dataHora)}
+                </p>
+              </div>
+
+              {/* HORÁRIO */}
+              <div>
+                <strong>⏰ Horário</strong>
+
+                <p style={{ color: "#cbd5e1" }}>
+                  {formatarHora(pelada.dataHora)}
+                </p>
+              </div>
+
+              {/* LOCAL */}
+              <div>
+                <strong>📍 Local</strong>
+
+                <p style={{ color: "#cbd5e1" }}>
+                  {pelada.local || "Local não informado"}
+                </p>
+              </div>
+
+              {/* VALOR */}
+              <div>
+                <strong>💰 Valor</strong>
+
+                <p
+                  style={{
+                    color: "#4ade80",
+                    fontSize: "1.3rem",
+                    fontWeight: "bold",
+                  }}
+                >
+                  {formatarValor(pelada.valor)}
+                </p>
+              </div>
+
+              {/* STATUS */}
+              <div>
+                <strong>📌 Status</strong>
+
+                <p
+                  style={{
+                    color: pelada.ativa
+                      ? "#4ade80"
+                      : "#f87171",
+
+                    fontWeight: "bold",
+                  }}
+                >
+                  {pelada.ativa
+                    ? "🟢 Pelada ativa"
+                    : "🔴 Pelada encerrada"}
+                </p>
+              </div>
+
+              {/* BOTÃO PAGAR PIX */}
+              {pelada.ativa && (
+                <button
+                  onClick={() =>
+                    navigate(`/pagamento/${peladaId}`)
+                  }
+                  style={{
+                    width: "100%",
+                    padding: "14px",
+                    marginTop: "5px",
+                    border: "none",
+                    borderRadius: "10px",
+                    backgroundColor: "#22c55e",
+                    color: "#ffffff",
+                    fontSize: "1rem",
+                    fontWeight: "bold",
+                    cursor: "pointer",
+                  }}
+                >
+                  💳 Pagar Pix
+                </button>
+              )}
+
+              {/* CRIADO POR */}
+              {pelada.criadoPor && (
+                <div>
+                  <strong>👤 Criado por</strong>
+
+                  <p style={{ color: "#cbd5e1" }}>
+                    {pelada.criadoPor.username ||
+                      pelada.criadoPor.email ||
+                      "Usuário"}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>

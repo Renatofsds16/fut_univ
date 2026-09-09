@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { login } from '../services/auth';
 
 export function FormLogin() {
@@ -8,6 +8,7 @@ export function FormLogin() {
   const [entrando, setEntrando] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -23,7 +24,10 @@ export function FormLogin() {
 
       console.log('Usuário:', resposta.user);
 
-      navigate('/pelada');
+      const destino =
+        location.state?.from?.pathname || "/peladas";
+
+      navigate(destino, { replace: true });
     } catch (error) {
       if (error instanceof Error) {
         alert(

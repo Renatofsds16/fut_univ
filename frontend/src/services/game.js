@@ -1,14 +1,17 @@
 import Parse from "./parseConfig";
 
+// Lista todas as peladas ativas
+export async function listarPeladas() {
+  const resposta = await Parse.Cloud.run("list_peladas");
 
-export async function allPeladas(
-  usuarioId
-){
-  const resposta = await Parse.Cloud.run("list_peladas", {
-    usuarioId
+  return resposta;
+}
+
+// Busca uma única pelada pelo ID
+export async function buscarPelada(peladaId) {
+  const resposta = await Parse.Cloud.run("get_pelada", {
+    peladaId,
   });
-  console.log("***********************Resposta*****************")
-  console.log(resposta)
-  console.log("*************************************************")
+
   return resposta;
 }

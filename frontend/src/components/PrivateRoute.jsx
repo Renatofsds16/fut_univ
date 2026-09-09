@@ -1,13 +1,14 @@
 import React from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
-export function PrivateRoute() {
+export function PrivateRoute({ children }) {
   const location = useLocation();
 
   const usuarioLogado = !!localStorage.getItem("token");
-  console.log("*************************************************")
-  console.log(usuarioLogado)
-  console.log("*************************************************")
+
+  console.log("=================================");
+  console.log("Usuário logado:", usuarioLogado);
+  console.log("=================================");
 
   if (!usuarioLogado) {
     return (
@@ -19,5 +20,5 @@ export function PrivateRoute() {
     );
   }
 
-  return <Outlet />;
+  return children;
 }
