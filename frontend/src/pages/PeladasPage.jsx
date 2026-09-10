@@ -1,73 +1,128 @@
 import React, { useEffect, useState } from "react";
+
 import { useNavigate } from "react-router-dom";
+
 import { listarPeladas } from "../services/game";
 
 export function PeladasPage() {
+
   const navigate = useNavigate();
 
   const [peladas, setPeladas] = useState([]);
+
   const [carregando, setCarregando] = useState(true);
+
   const [mensagemErro, setMensagemErro] = useState("");
 
   useEffect(() => {
+
     async function carregarPeladas() {
+
       try {
+
         setCarregando(true);
+
         setMensagemErro("");
 
         const resposta = await listarPeladas();
 
-        console.log("Resposta das peladas:", resposta);
+        console.log(
+          "Resposta das peladas:",
+          resposta
+        );
 
         if (resposta?.success) {
-          setPeladas(resposta.peladas || []);
+
+          setPeladas(
+            resposta.peladas || []
+          );
+
         } else {
-          setMensagemErro("Não foi possível carregar as peladas.");
+
+          setMensagemErro(
+            "Não foi possível carregar as peladas."
+          );
+
         }
+
       } catch (error) {
-        console.error("Erro ao carregar peladas:", error);
+
+        console.error(
+          "Erro ao carregar peladas:",
+          error
+        );
 
         setMensagemErro(
-          error?.message || "Não foi possível carregar as peladas."
+          error?.message ||
+          "Não foi possível carregar as peladas."
         );
 
         setPeladas([]);
+
       } finally {
+
         setCarregando(false);
+
       }
+
     }
 
     carregarPeladas();
+
   }, []);
 
   function formatarData(dataHora) {
+
     if (!dataHora) {
+
       return "Data não informada";
+
     }
 
-    return new Date(dataHora).toLocaleDateString("pt-BR");
+    return new Date(
+      dataHora
+    ).toLocaleDateString("pt-BR");
+
   }
 
   function formatarHora(dataHora) {
+
     if (!dataHora) {
+
       return "Horário não informado";
+
     }
 
-    return new Date(dataHora).toLocaleTimeString("pt-BR", {
+    return new Date(
+      dataHora
+    ).toLocaleTimeString("pt-BR", {
+
       hour: "2-digit",
+
       minute: "2-digit",
+
     });
+
   }
 
   function formatarValor(valor) {
-    return Number(valor || 0).toLocaleString("pt-BR", {
+
+    return Number(
+      valor || 0
+    ).toLocaleString("pt-BR", {
+
       style: "currency",
+
       currency: "BRL",
+
     });
+
   }
 
   if (carregando) {
+
     return (
+
       <div
         style={{
           minHeight: "100vh",
@@ -76,57 +131,98 @@ export function PeladasPage() {
           display: "flex",
           justifyContent: "center",
           alignItems: "center",
-          fontFamily: "system-ui, -apple-system, sans-serif",
+          fontFamily:
+            "system-ui, -apple-system, sans-serif",
         }}
       >
-        <h2>⏳ Carregando peladas...</h2>
+
+        <h2>
+          ⏳ Carregando peladas...
+        </h2>
+
       </div>
+
     );
+
   }
 
   return (
+
     <div
       style={{
         minHeight: "100vh",
         backgroundColor: "#0f172a",
         color: "#f8fafc",
         padding: "20px",
-        fontFamily: "system-ui, -apple-system, sans-serif",
+        fontFamily:
+          "system-ui, -apple-system, sans-serif",
       }}
     >
+
       <div
         style={{
           maxWidth: "600px",
           margin: "0 auto",
         }}
       >
+
         <div
           style={{
-            textAlign: "center",
             marginBottom: "30px",
           }}
         >
-          <h1
-            style={{
-              color: "#38bdf8",
-              margin: 0,
-              fontSize: "1.8em",
-            }}
-          >
-            ⚽ Peladas disponíveis
-          </h1>
 
-          <p
+          <div
             style={{
-              color: "#94a3b8",
-              marginTop: "8px",
+              textAlign: "center",
             }}
           >
-            Escolha uma pelada para ver os detalhes
-          </p>
+
+            <h1
+              style={{
+                color: "#38bdf8",
+                margin: 0,
+                fontSize: "1.8em",
+              }}
+            >
+              ⚽ Peladas disponíveis
+            </h1>
+
+            <p
+              style={{
+                color: "#94a3b8",
+                marginTop: "8px",
+              }}
+            >
+              Escolha uma pelada para ver os detalhes
+            </p>
+
+          </div>
+
+          <button
+            onClick={() =>
+              navigate("/criar-pelada")
+            }
+            style={{
+              width: "100%",
+              marginTop: "20px",
+              padding: "13px",
+              border: "none",
+              borderRadius: "10px",
+              backgroundColor: "#22c55e",
+              color: "#ffffff",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              cursor: "pointer",
+            }}
+          >
+            + Criar pelada
+          </button>
+
         </div>
 
         {mensagemErro && (
+
           <div
             style={{
               backgroundColor: "#ef444422",
@@ -140,16 +236,20 @@ export function PeladasPage() {
           >
             {mensagemErro}
           </div>
+
         )}
 
         {peladas.length > 0 ? (
+
           <div
             style={{
               display: "grid",
               gap: "16px",
             }}
           >
+
             {peladas.map((pelada) => (
+
               <div
                 key={pelada.objectId}
                 style={{
@@ -159,6 +259,7 @@ export function PeladasPage() {
                   border: "1px solid #334155",
                 }}
               >
+
                 <h2
                   style={{
                     margin: "0 0 12px",
@@ -175,7 +276,9 @@ export function PeladasPage() {
                     color: "#cbd5e1",
                   }}
                 >
-                  📅 {formatarData(pelada.dataHora)}
+                  📅 {formatarData(
+                    pelada.dataHora
+                  )}
                 </p>
 
                 <p
@@ -184,7 +287,9 @@ export function PeladasPage() {
                     color: "#cbd5e1",
                   }}
                 >
-                  ⏰ {formatarHora(pelada.dataHora)}
+                  ⏰ {formatarHora(
+                    pelada.dataHora
+                  )}
                 </p>
 
                 <p
@@ -193,7 +298,8 @@ export function PeladasPage() {
                     color: "#cbd5e1",
                   }}
                 >
-                  📍 {pelada.local || "Local não informado"}
+                  📍 {pelada.local ||
+                    "Local não informado"}
                 </p>
 
                 <p
@@ -204,7 +310,9 @@ export function PeladasPage() {
                     fontSize: "1.1rem",
                   }}
                 >
-                  💰 {formatarValor(pelada.valor)}
+                  💰 {formatarValor(
+                    pelada.valor
+                  )}
                 </p>
 
                 <p
@@ -219,7 +327,9 @@ export function PeladasPage() {
 
                 <button
                   onClick={() =>
-                    navigate(`/pelada/${pelada.objectId}`)
+                    navigate(
+                      `/pelada/${pelada.objectId}`
+                    )
                   }
                   style={{
                     width: "100%",
@@ -235,10 +345,15 @@ export function PeladasPage() {
                 >
                   Ver pelada
                 </button>
+
               </div>
+
             ))}
+
           </div>
+
         ) : (
+
           <div
             style={{
               backgroundColor: "#1e293b",
@@ -248,6 +363,7 @@ export function PeladasPage() {
               textAlign: "center",
             }}
           >
+
             <div
               style={{
                 fontSize: "3rem",
@@ -274,9 +390,15 @@ export function PeladasPage() {
             >
               Ainda não existem peladas ativas.
             </p>
+
           </div>
+
         )}
+
       </div>
+
     </div>
+
   );
+
 }

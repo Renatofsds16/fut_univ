@@ -3,7 +3,7 @@ import { Routes, Route } from "react-router-dom";
 import { PagamentoPage } from "./pages/PagamentoPage";
 import { FormLogin } from "./components/FormLogin";
 import { FormCadastro } from "./components/FormCadastro";
-
+import { CriarPeladaPage } from "./pages/CriarPeladaPage";
 import { PeladasPage } from "./pages/PeladasPage";
 import { PeladaPage } from "./pages/PeladaPage";
 
@@ -68,6 +68,14 @@ function App() {
         element={
           <PrivateRoute>
             <PagamentoPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/criar-pelada"
+        element={
+          <PrivateRoute>
+            <CriarPeladaPage />
           </PrivateRoute>
         }
       />

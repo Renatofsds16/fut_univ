@@ -7,150 +7,238 @@ export function FormCadastro() {
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
   const [cadastrando, setCadastrando] = useState(false);
+  const [mensagemErro, setMensagemErro] = useState('');
 
   const navigate = useNavigate();
 
   async function handleCadastro(e) {
-  e.preventDefault();
+    e.preventDefault();
 
-  setCadastrando(true);
+    setCadastrando(true);
+    setMensagemErro('');
 
-  try {
-    const response = await signup(nome, email, senha);
+    try {
+      const response = await signup(nome, email, senha);
 
-    console.log("Resposta do cadastro:", response);
+      console.log("Resposta do cadastro:", response);
 
-    if (!response.success) {
-      throw new Error("Falha ao realizar cadastro.");
+      if (!response.success) {
+        throw new Error("Falha ao realizar cadastro.");
+      }
+
+      console.log("Usuário criado:", response.user);
+
+      navigate("/");
+    } catch (error) {
+      console.error("ERRO COMPLETO:", error);
+
+      setMensagemErro(
+        "Erro ao cadastrar: " + (error.message || "Tente novamente.")
+      );
+    } finally {
+      setCadastrando(false);
     }
-
-    console.log("Usuário criado:", response.user);
-
-    alert("Cadastro realizado com sucesso!");
-
-    navigate("/pelada");
-
-  } catch (error) {
-    console.error("ERRO COMPLETO:", error);
-
-    alert(
-      "Erro ao cadastrar: " +
-      (error.message || "Tente novamente.")
-    );
-
-  } finally {
-    setCadastrando(false);
   }
-}
 
   return (
     <div
       style={{
-        maxWidth: '350px',
-        margin: '80px auto',
-        padding: '20px',
-        border: '1px solid #ccc',
-        borderRadius: '8px',
-        textAlign: 'center'
+        minHeight: "100vh",
+        backgroundColor: "#0f172a",
+        color: "#f8fafc",
+        padding: "20px",
+        fontFamily: "system-ui, -apple-system, sans-serif",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
       }}
     >
-      <h2>📝 Cadastro na Pelada</h2>
-
-      <form
-        onSubmit={handleCadastro}
+      <div
         style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          textAlign: 'left'
+          width: "100%",
+          maxWidth: "400px",
+          backgroundColor: "#1e293b",
+          padding: "30px",
+          borderRadius: "16px",
+          border: "1px solid #334155",
+          boxSizing: "border-box",
         }}
       >
-
-        <div>
-          <label>
-            <strong>Nome de Usuário:</strong>
-          </label>
-
-          <input
-            type="text"
-            value={nome}
-            onChange={(e) => setUsername(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              marginTop: '4px',
-              boxSizing: 'border-box'
-            }}
-            required
-          />
-        </div>
-
-        <div>
-          <label>
-            <strong>E-mail:</strong>
-          </label>
-
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              marginTop: '4px',
-              boxSizing: 'border-box'
-            }}
-            required
-          />
-        </div>
-
-        <div>
-          <label>
-            <strong>Senha:</strong>
-          </label>
-
-          <input
-            type="password"
-            value={senha}
-            onChange={(e) => setSenha(e.target.value)}
-            style={{
-              width: '100%',
-              padding: '8px',
-              marginTop: '4px',
-              boxSizing: 'border-box'
-            }}
-            required
-          />
-        </div>
-
-        <button
-          type="submit"
-          disabled={cadastrando}
+        <h1
           style={{
-            backgroundColor: '#2e7d32',
-            color: 'white',
-            padding: '10px',
-            border: 'none',
-            borderRadius: '4px',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            marginTop: '10px'
+            color: "#38bdf8",
+            textAlign: "center",
+            marginBottom: "25px",
+            fontSize: "1.8rem",
           }}
         >
-          {cadastrando ? 'Cadastrando...' : 'Cadastrar'}
-        </button>
+          📝 Cadastro na Pelada
+        </h1>
 
-      </form>
+        {/* MENSAGEM DE ERRO */}
+        {mensagemErro && (
+          <div
+            style={{
+              backgroundColor: "#ef444422",
+              border: "1px solid #ef4444",
+              color: "#fca5a5",
+              padding: "12px",
+              borderRadius: "10px",
+              textAlign: "center",
+              marginBottom: "20px",
+              fontSize: "0.9rem",
+            }}
+          >
+            {mensagemErro}
+          </div>
+        )}
 
-      <p
-        style={{
-          marginTop: '15px',
-          fontSize: '0.9em'
-        }}
-      >
-        Já tem uma conta? <Link to="/">Faça Login</Link>
-      </p>
+        <form
+          onSubmit={handleCadastro}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "18px",
+          }}
+        >
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "6px",
+                fontWeight: "500",
+                color: "#f8fafc",
+              }}
+            >
+              Nome de Usuário
+            </label>
 
+            <input
+              type="text"
+              value={nome}
+              onChange={(e) => setUsername(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid #334155",
+                backgroundColor: "#0f172a",
+                color: "#f8fafc",
+                fontSize: "1rem",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+              placeholder="Digite seu usuário"
+              required
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "6px",
+                fontWeight: "500",
+                color: "#f8fafc",
+              }}
+            >
+              E-mail
+            </label>
+
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid #334155",
+                backgroundColor: "#0f172a",
+                color: "#f8fafc",
+                fontSize: "1rem",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+              placeholder="seuemail@exemplo.com"
+              required
+            />
+          </div>
+
+          <div>
+            <label
+              style={{
+                display: "block",
+                marginBottom: "6px",
+                fontWeight: "500",
+                color: "#f8fafc",
+              }}
+            >
+              Senha
+            </label>
+
+            <input
+              type="password"
+              value={senha}
+              onChange={(e) => setSenha(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solid #334155",
+                backgroundColor: "#0f172a",
+                color: "#f8fafc",
+                fontSize: "1rem",
+                outline: "none",
+                boxSizing: "border-box",
+              }}
+              placeholder="Crie uma senha"
+              required
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={cadastrando}
+            style={{
+              width: "100%",
+              padding: "14px",
+              marginTop: "10px",
+              border: "none",
+              borderRadius: "10px",
+              backgroundColor: cadastrando ? "#15803d" : "#22c55e",
+              color: "#ffffff",
+              fontSize: "1rem",
+              fontWeight: "bold",
+              cursor: cadastrando ? "not-allowed" : "pointer",
+              transition: "background-color 0.2s",
+            }}
+          >
+            {cadastrando ? "Cadastrando..." : "Cadastrar"}
+          </button>
+        </form>
+
+        <p
+          style={{
+            marginTop: "20px",
+            textAlign: "center",
+            color: "#94a3b8",
+            fontSize: "0.95rem",
+          }}
+        >
+          Já tem uma conta?{" "}
+          <Link
+            to="/"
+            style={{
+              color: "#38bdf8",
+              textDecoration: "none",
+              fontWeight: "bold",
+            }}
+          >
+            Faça Login
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }
