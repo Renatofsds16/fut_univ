@@ -1,12 +1,24 @@
 services:
-  frontend:
-    build: ./frontend
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+  fut-univ-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_PARSE_APPLICATION_ID: ${REACT_APP_PARSE_APPLICATION_ID}
+        REACT_APP_PARSE_HOST_URL: ${REACT_APP_PARSE_HOST_URL}
+        REACT_APP_PARSE_JAVASCRIPT_KEY: ${REACT_APP_PARSE_JAVASCRIPT_KEY}
     env_file:
       - .env
+    container_name: fut_univ_app
+    restart: always
     environment:
-      - CHOKIDAR_USEPOLLING=true
+      - VIRTUAL_HOST=unitechref.com.br,179.199.143.196
+      - VIRTUAL_PATH=/jogos
+      - VIRTUAL_DEST=/
+      - VIRTUAL_PORT=80
+    networks:
+      - rede-web
+
+networks:
+  rede-web:
+    external: true
